@@ -11,12 +11,7 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-PROMPT = """Valentine card in the shape of a heart, 
-                abstract handmade collage, rough cut paper layers, torn edges, mismatched textures, 
-                pencil shading and sketch marks, crude imperfect geometry, intentionally clumsy composition, kitsch graphic style, 
-                scanned paper look, vintage photocopy noise, mixed surfaces (grid paper, dirty paper, woodgrain print, rough stone texture),
-                matte print, high contrast, strong negative space, no smooth gradients, no realism, colors: #342D25 dark brown background,
-                #932A27 burgundy paper shapes, #F7EEE5 off-white paper pieces, no text"""
+PROMPT = """Valentine Abstract geometric paper collage, modernist bauhaus constructivism style, torn paper edges, layered cutout shapes, scanned paper textures, monochrome black/white with deep red accent, editorial graphic design, high contrast, minimal palette, matte print look, vintage print grain"""
 
 def generate_valentine_image(username: str = None) -> Image.Image:
     """Генерирует валентинку через API"""
