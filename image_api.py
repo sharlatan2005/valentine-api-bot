@@ -3,12 +3,16 @@ from PIL import Image
 from io import BytesIO
 import logging
 import asyncio
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 URL = "https://valentine-bot-api.prasionissy.workers.dev"
 HEADERS = {
-    "Authorization": "Bearer IFkHiETtB1KpY3XgViq1K1u9SFVWUu7xu9hWNXo_",
+    "Authorization": f"Bearer {os.getenv('IMG_TOKEN')}",
     "Content-Type": "application/json",
 }
 

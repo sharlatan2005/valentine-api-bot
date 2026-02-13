@@ -205,7 +205,7 @@ async def send_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_photo(
             chat_id=recipient_id,
             photo=image_file_id,
-            caption=f"💌 **Вам валентинка!**\n\n{text}\n\n❤️ С днём всех влюбленных! ❤️",
+            caption=f"💌 **Вам валентинка!**\n\nТекст: {text}\n\n❤️ С днём всех влюбленных! ❤️",
             parse_mode='Markdown'
         )
         

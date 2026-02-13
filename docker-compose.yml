@@ -1,0 +1,26 @@
+services:
+  bot:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: valentine-bot
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Moscow
+      - PYTHON_VERSION=3.12
+      # Добавь свои переменные окружения, например:
+      # - BOT_TOKEN=${BOT_TOKEN}
+    volumes:
+      # Для разработки можно раскомментировать:
+      # - ./:/app
+      # Для сохранения логов
+      - ./logs:/app/logs
+    # Если боту нужен доступ к интернету (обычно да)
+    network_mode: bridge
+    # Или создай сеть:
+    networks:
+      - bot-network
+
+networks:
+  bot-network:
+    driver: bridge
