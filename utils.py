@@ -3,14 +3,14 @@ from telegram.ext import ConversationHandler, ContextTypes
 from telegram.error import Forbidden, BadRequest
 from io import BytesIO
 from enums import States
-from keyboards import get_image_edit_keyboard, get_confirmation_keyboard, get_back_keyboard
+from keyboards import get_image_edit_keyboard, get_confirmation_keyboard, get_back_keyboard, get_text_edit_keyboard
 from image_api import generate_valentine_image
 from gpt_api import generate_valentine_text
 import re
 from db import SqliteDb
 
 async def generate_image():
-        img = generate_valentine_image()
+        img = await generate_valentine_image()
         
         # Конвертируем PIL Image в bytes для отправки
         bio = BytesIO()
@@ -19,8 +19,8 @@ async def generate_image():
         bio.seek(0)
         return bio
 
-async def generate_text():
-    text = generate_valentine_text()
+async def generate_text(topic):
+    text = await generate_valentine_text(topic)
     return text
 
 def is_valid_username(username: str) -> bool:
@@ -49,18 +49,22 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not clean_username:
         await update.message.reply_text(
             "❌ Имя пользователя не может быть пустым.\n"
-            "Пожалуйста, введите @ник_в_телеграме получателя корректно:"
+            "Пожалуйста, введите @ник_в_телеграме получателя корректно:",
+            reply_markup=get_back_keyboard()
         )
         return States.SELECTING_RECIPIENT
     elif not is_valid_username(clean_username):
         await update.message.reply_text(
             "❌ Некорректное имя пользователя!.\n"
-            "Пожалуйста, введите @ник_в_телеграме получателя корректно:"
+            "Пожалуйста, введите @ник_в_телеграме получателя корректно:",
+            reply_markup=get_back_keyboard()
         )
         return States.SELECTING_RECIPIENT
     elif not db.username_exists(clean_username):
         await update.message.reply_text(
             "❌ Пользователь ещё не стартовал работу с ботом. Придумайте, как заставить его это сделать!\n"
+            "Можете ввести имя другого пользователя!",
+            reply_markup=get_back_keyboard()
         )
         return States.SELECTING_RECIPIENT
     
@@ -79,8 +83,7 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             caption = (
                 f"❤️ **Валентинка для @{clean_username}** ❤️\n\n"
-                f"✨ Открытка сгенерирована специально для вас!\n"
-                f"💝 Нажмите кнопки ниже, чтобы настроить или отправить"
+                f"💝 Нажми кнопки ниже, чтобы настроить или отправить"
             )
             
             sent_message = await update.message.reply_photo(
@@ -95,10 +98,8 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.delete()
 
             await update.message.reply_text(
-                text=f"⚠️ Не удалось сгенерировать изображение.\n"
-                    f"🖼 [ДЕМО] Валентинка для @{clean_username}\n"
-                    f"❤️ ❤️ ❤️",
-                reply_markup=get_image_edit_keyboard()
+                text=f"⚠️ Не удалось сгенерировать изображение.\n",
+                reply_markup=get_back_keyboard()
             )
             
         return States.GENERATING_IMAGE
@@ -109,9 +110,11 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if "chat not found" in error_text:
             await update.message.reply_text("❌ Пользователь не найден. Убедитесь, что username правильный и пользователь писал боту хотя бы раз.")
         elif "user is deactivated" in error_text:
-            await update.message.reply_text("❌ Аккаунт пользователя деактивирован.")
+            await update.message.reply_text("❌ Аккаунт пользователя деактивирован.",
+                                            reply_markup=get_back_keyboard())
         else:
-            await update.message.reply_text("❌ Пользователь не найден или недоступен. Попробуйте снова.")
+            await update.message.reply_text("❌ Пользователь не найден или недоступен. Попробуйте снова.",
+                                            reply_markup=get_back_keyboard())
         
         return States.SELECTING_RECIPIENT
     
@@ -160,14 +163,12 @@ async def confirm_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_photo(
         chat_id=update.effective_chat.id,
         photo=image_file_id,
-        caption=f"""
-                💝 **ВСЁ ГОТОВО К ОТПРАВКЕ!**
-
-                📤 **Получатель:** @{recipient}
-                📝 **Текст:** {text}
-
-                ✅ Проверь данные. Всё верно?
-                """,
+        caption=(
+            "💝 **ВСЁ ГОТОВО К ОТПРАВКЕ!**\n\n"
+            f"📤 **Получатель:** @{recipient}\n"
+            f"📝 **Текст:** {text}\n\n"
+            "✅ Проверь данные. Всё верно?"
+        ),
         parse_mode='Markdown',
         reply_markup=get_confirmation_keyboard()
     )
@@ -204,7 +205,7 @@ async def send_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_photo(
             chat_id=recipient_id,
             photo=image_file_id,
-            caption=f"💌 **Вам валентинка!**\n\n{text}\n\n❤️ С днём Святого Валентина! ❤️",
+            caption=f"💌 **Вам валентинка!**\n\n{text}\n\n❤️ С днём всех влюбленных! ❤️",
             parse_mode='Markdown'
         )
         
@@ -214,7 +215,7 @@ async def send_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f"✅ **Валентинка @{recipient} успешно отправлена!**\n\n"
-                 f"💫 Хотите создать еще одну?",
+                 f"💫 Хочешь создать еще одну?",
             parse_mode='Markdown',
             reply_markup=get_back_keyboard()  # Клавиатура для нового создания
         )
@@ -239,3 +240,34 @@ async def send_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     context.user_data.clear()
     return ConversationHandler.END
+
+
+async def handle_topic_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик ввода темы валентинки"""
+    topic = update.message.text
+    context.user_data['valentine_topic'] = topic
+    
+    # Показываем процесс генерации
+    wait_message = await update.message.reply_text(
+        f"⏳ **Генерируем текст на тему:**\n\"{topic}\"\n\nЭто займет около 10 секунд...",
+        parse_mode='Markdown'
+    )
+    
+    # Генерируем текст
+    generated_text = await generate_text(topic)
+    context.user_data['text'] = generated_text
+    
+    # Удаляем сообщение о генерации
+    await wait_message.delete()
+    
+    # Отправляем фото с готовым текстом
+    await context.bot.send_photo(
+        chat_id=update.effective_chat.id,
+        photo=context.user_data.get('generated_image'),  # Сохраните file_id фото заранее
+        caption=f"✨ **Сгенерированный текст:**\n\n{generated_text}\n\n"
+                "📌 Что делаем дальше?",
+        parse_mode='Markdown',
+        reply_markup=get_text_edit_keyboard()
+    )
+    
+    return States.GENERATING_TEXT

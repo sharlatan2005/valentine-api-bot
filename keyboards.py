@@ -22,7 +22,7 @@ def get_image_edit_keyboard():
 def get_text_creation_keyboard():
     """Клавиатура выбора способа создания текста"""
     keyboard = [
-        [InlineKeyboardButton("✨ Сгенерировать текст", callback_data="generate_text")],
+        #[InlineKeyboardButton("✨ Сгенерировать текст", callback_data="generate_text")],
         [InlineKeyboardButton("✍️ Написать самому", callback_data="edit_text_manual")],
         [InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]
     ]
@@ -31,8 +31,8 @@ def get_text_creation_keyboard():
 def get_text_edit_keyboard():
     """Клавиатура для редактирования текста"""
     keyboard = [
-        [InlineKeyboardButton("🔄 Перегенерировать", callback_data="generate_text")],
-        [InlineKeyboardButton("✍️ Написать свой", callback_data="edit_text_manual")],
+#        [InlineKeyboardButton("🔄 Перегенерировать", callback_data="generate_text")],
+        [InlineKeyboardButton("✍️ Написать самому(отредактировать)", callback_data="edit_text_manual")],
         [InlineKeyboardButton("✅ Оставить этот", callback_data="keep_text")],
         [InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]
     ]

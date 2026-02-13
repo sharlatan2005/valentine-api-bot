@@ -6,7 +6,7 @@ import os
 
 from enums import States
 from handlers import button_handler, start, help_command
-from utils import select_recipient, edit_text_manual
+from utils import select_recipient, edit_text_manual, handle_topic_input
 
 # Настройка логирования
 logging.basicConfig(
@@ -39,6 +39,9 @@ def main():
             ],
             States.EDITING_TEXT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, edit_text_manual)
+            ],
+            States.ENTERING_TOPIC: [  # Новое состояние для ввода темы
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topic_input)
             ],
             States.CONFIRMING: [
                 CallbackQueryHandler(button_handler)  # Обработчик кнопок в этом состоянии

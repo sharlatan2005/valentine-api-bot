@@ -5,5 +5,6 @@ class States(IntEnum):
     GENERATING_IMAGE = auto()
     EDITING_IMAGE = auto()
     GENERATING_TEXT = auto()
+    ENTERING_TOPIC = auto()
     EDITING_TEXT = auto()
     CONFIRMING = auto()

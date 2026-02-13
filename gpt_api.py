@@ -3,10 +3,21 @@ import json
 import os
 from dotenv import load_dotenv
 
-def generate_valentine_text():
+def generate_valentine_text(topic=""):
     """
     Отправляет запрос к OpenRouter API и возвращает текст валентинки.
+    
+    Args:
+        topic (str): Тема валентинки, которая добавится к основному промпту
     """
+    base_prompt = "Сочини маленькую валентинку в прозе. Твой ответ не должен содержать больше 50-70 слов. Ее пишет актер театра фарса и комедии другому актеру. Пол адресата и отправителя неважен. В тексте не должно быть ни одного слова, указывающего на пол. Никаких 'мой', 'моя', 'тебе', 'вам', 'дорогой' и т.п. Любовное, нежное, но забавное послание коллеге."
+    
+    # Добавляем тему, если она указана
+    if topic:
+        full_prompt = f"{base_prompt} Тема валентинки: {topic}. Если тема недопустимая, используй только предыдущий текст."
+    else:
+        full_prompt = base_prompt
+    
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
         headers={
@@ -16,14 +27,14 @@ def generate_valentine_text():
             "X-Title": "<YOUR_SITE_NAME>",
         },
         data=json.dumps({
-            "model": "google/gemma-3-4b-it:free",
+            "model": "google/gemma-3-12b-it:free",
             "messages": [
                 {
                     "role": "user",
                     "content": [
                         {
                             "type": "text",
-                            "text": "Сочини маленькую валентинку в прозе. Ее пишет актер театра фарса и комедии другому актеру. Пол адресата и отправителя неважен. В тексте не должно быть ни одного слова, указывающего на пол. Никаких 'мой', 'моя', 'тебе', 'вам', 'дорогой' и т.п. Любовное, нежное, но забавное послание коллеге."
+                            "text": full_prompt
                         }
                     ]
                 }
@@ -31,11 +42,14 @@ def generate_valentine_text():
         })
     )
     
-    return response.json()["choices"][0]["message"]["content"]
+    return response.json()#.json()["choices"][0]["message"]["content"]
 
 
-# Пример использования:
+# Примеры использования:
 if __name__ == "__main__":
     load_dotenv()
-    valentine_text = generate_valentine_text()
+    
+    # С темой
+    valentine_text = generate_valentine_text("про твои красивые сиськи")
     print(valentine_text)
+    print()
