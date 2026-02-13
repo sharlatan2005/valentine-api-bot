@@ -1,9 +1,12 @@
 from telegram import Update, InputMediaPhoto
 from telegram.ext import ConversationHandler, ContextTypes
+from telegram.helpers import escape_markdown
 from enums import States
 from keyboards import (get_start_keyboard, get_image_edit_keyboard, get_text_creation_keyboard, 
                        get_text_edit_keyboard, get_back_keyboard)
-from utils import send_valentine, confirm_valentine, generate_image
+from utils import send_valentine, confirm_valentine, generate_image, generate_text
+from db import SqliteDb
+import os
 
 # ==================== ОБРАБОТЧИКИ ====================
 
@@ -24,10 +27,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Нажми кнопку ниже, чтобы начать!
     """
     
+
     if update.message:
+        db = SqliteDb(os.getenv("SQLITE_PATH"))
+        user = update.effective_user
+        telegram_id = user.id
+        username = user.username if user.username else ""
+        if not db.user_exists(telegram_id):
+            db.add_user(telegram_id, username)
         await update.message.reply_text(welcome_text, reply_markup=get_start_keyboard())
     else:
-        await update.callback_query.edit_message_text(welcome_text, reply_markup=get_start_keyboard())
+        query = update.callback_query
+        await query.answer()
+        
+        # Проверяем, есть ли в сообщении фото
+        if query.message.photo:
+            # Это сообщение с фото - нужно удалить и отправить новое
+            await query.message.delete()
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=welcome_text,
+                reply_markup=get_start_keyboard()
+            )
+        else:
+            # Обычное текстовое сообщение - можно редактировать
+            await query.edit_message_text(welcome_text, reply_markup=get_start_keyboard())
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -61,9 +85,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "create_valentine":
         await query.edit_message_text(
             "💝 Отлично! Давай создадим валентинку.\n\n"
-            "📋 **Напиши @username получателя**\n"
+            "📋 **Напиши @ник_в_телеграме получателя**\n"
             "(можно с символом @ или без - бот поймёт оба варианта)\n\n"
-            "Пример: @durov или просто durov"
+            "Пример: @MikhailDOOMER или просто MikhailDOOMER"
         )
         return States.SELECTING_RECIPIENT
     
@@ -81,62 +105,97 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if recipient:
             # Генерируем изображение
-            bio = generate_image()
-            
-            # РЕДАКТИРУЕМ ТЕКУЩЕЕ СООБЩЕНИЕ (то, на котором нажали кнопку)
-            await query.edit_message_media(
-                media=InputMediaPhoto(
-                    media=bio,
-                    caption=f"❤️ **Валентинка для @{recipient}** ❤️\n\n✨ Открытка сгенерирована!",
-                    parse_mode='Markdown'
-                ),
-                reply_markup=get_image_edit_keyboard()  # Новая клавиатура
+            await query.edit_message_caption(
+                caption="🔄 **Генерирую новую открытку...**\n\nМожет пройти до 30 секунд...",
+                parse_mode='Markdown'
             )
-        
+
+            bio = await generate_image()
+
+            await query.message.delete()
+
+            caption = (
+                f"❤️ **Валентинка для @{recipient}** ❤️\n\n"
+                f"✨ Открытка сгенерирована специально для вас!\n"
+                f"💝 Нажмите кнопки ниже, чтобы настроить или отправить"
+            )
+            sent_message = await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=bio,
+                caption=caption,
+                parse_mode='Markdown',
+                reply_markup=get_image_edit_keyboard()
+            )
+            context.user_data['generated_image'] = sent_message.photo[-1].file_id
         await query.answer()
+
+        return States.GENERATING_IMAGE
     
     elif query.data == "keep_image":
-        await query.edit_message_text("✅ Изображение сохранено!")
-        await query.message.reply_text(
-            "📝 Теперь займемся текстом. Выбери способ:",
-            reply_markup=get_text_creation_keyboard()
-        )
-        return States.GENERATING_TEXT
+        # Редактируем ТОЛЬКО подпись и клавиатуру, фото остается
+        
+        existing_text = context.user_data.get('text')
+        
+        if existing_text:
+            # Если текст уже есть - переходим к подтверждению
+            await query.edit_message_caption(
+                caption="✅ **Изображение сохранено!**\n\n📝 **Текст уже есть!** Переходим к подтверждению...",
+                parse_mode='Markdown'
+            )
+            
+            # Вызываем подтверждение
+            await confirm_valentine(update, context)
+            return States.CONFIRMING
+        else:
+            # Если текста нет - предлагаем создать
+            await query.edit_message_caption(
+                caption="✅ **Изображение сохранено!**\n\n📝 Теперь займемся текстом. Выбери способ:",
+                parse_mode='Markdown',
+                reply_markup=get_text_creation_keyboard()
+            )
+            return States.GENERATING_TEXT
     
     elif query.data == "generate_text":
-        import random
+        await query.edit_message_caption(
+            caption="⏳ **Генерируем текст...**\nЭто займет пару секунд",
+            parse_mode='Markdown'
+        )
         
-        demo_texts = [
-            "С днём Святого Валентина! Ты делаешь этот мир лучше! ❤️",
-            "Спасибо, что ты есть! Ты самое лучшее, что со мной случалось! 💝",
-            "Ты — причина моей улыбки каждый день! 💕",
-            "С тобой каждый день как праздник! С днём всех влюблённых! 💖",
-            "Ты особенный человек в моей жизни! 💗",
-            "Люблю тебя больше жизни! С праздником! ❤️",
-            "Ты — моё счастье! 💘",
-            "Даже в самый хмурый день ты приносишь свет! 💓"
-        ]
-        generated_text = random.choice(demo_texts)
+        generated_text = await generate_text()
         
-        recipient = context.user_data.get('recipient')
-        if recipient:
-            generated_text = f"@{recipient}, {generated_text}"
-        
-        # Сохраняем сгенерированный текст
         context.user_data['text'] = generated_text
         
-        await query.edit_message_text(
-            f"✨ Сгенерированный текст:\n\n{generated_text}\n\n"
-            "Что делаем дальше?",
+        await query.edit_message_caption(
+            caption=f"✨ **Сгенерированный текст:**\n\n{generated_text}\n\n"
+                    "📌 Что делаем дальше?",
+            parse_mode='Markdown',
             reply_markup=get_text_edit_keyboard()
         )
         return States.GENERATING_TEXT
     
     elif query.data == "edit_text_manual":
-        await query.edit_message_text(
-            "✍️ Напиши свой текст для валентинки.\n\n"
-            "Отправь сообщение с текстом:"
-        )
+        current_text = context.user_data.get('text', '')
+        
+        # Редактируем caption
+        await query.delete_message()
+        
+        # Отправляем отдельное сообщение с текстом для удобного копирования
+        if current_text:
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=f"📝 **Текущий текст:**\n\n"
+                    f"`{current_text}`\n\n"
+                    f"👆 Нажми на текст, чтобы скопировать\n\n"
+                    f"✏️ Отправь новый вариант текста:",
+                parse_mode='Markdown'
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text=f"📨 Отправь свой текст:",
+                parse_mode='Markdown'
+            )
+        
         return States.EDITING_TEXT
     
     elif query.data == "keep_text":
@@ -145,12 +204,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif query.data == "send_valentine":
         await send_valentine(update, context)
-        await start(update, context)
         return ConversationHandler.END
     
     elif query.data == "cancel":
         context.user_data.clear()  # Очищаем данные при отмене
-        await query.edit_message_text("❌ Создание валентинки отменено.")
+        # await query.edit_message_text("❌ Создание валентинки отменено.")
         await start(update, context)
         return ConversationHandler.END
     
