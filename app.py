@@ -61,7 +61,7 @@ def main():
     # Регистрируем остальные обработчики
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CallbackQueryHandler(help_command, pattern="^help$"))
-    application.add_handler(CallbackQueryHandler(start, pattern="^back_to_start$"))
+    application.add_handler(CallbackQueryHandler(button_handler, pattern="^back_to_start$"))
     
     print("❤️ Бот для валентинок запущен! ❤️")
     print("Нажми Ctrl+C для остановки")

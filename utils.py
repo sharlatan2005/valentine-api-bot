@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ConversationHandler, ContextTypes
 from telegram.error import Forbidden, BadRequest
+from telegram.helpers import escape_markdown
 from io import BytesIO
 from enums import States
 from keyboards import get_image_edit_keyboard, get_confirmation_keyboard, get_back_keyboard, get_text_edit_keyboard
@@ -50,22 +51,22 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not clean_username:
         await update.message.reply_text(
             "❌ Имя пользователя не может быть пустым.\n"
-            "Пожалуйста, введите @ник_в_телеграме получателя корректно:",
-            reply_markup=get_back_keyboard()
+            "Пожалуйста, введите @ник_в_телеграме получателя корректно:"
+            #reply_markup=get_back_keyboard()
         )
         return States.SELECTING_RECIPIENT
     elif not is_valid_username(clean_username):
         await update.message.reply_text(
             f"❌ {clean_username} - некорректное имя пользователя в Telegram!\n"
-            "Пожалуйста, введите @ник_в_телеграме получателя корректно:",
-            reply_markup=get_back_keyboard()
+            "Пожалуйста, введите @ник_в_телеграме получателя корректно:"
+            #reply_markup=get_back_keyboard()
         )
         return States.SELECTING_RECIPIENT
     elif not db.username_exists(clean_username):
         await update.message.reply_text(
             f"❌ Пользователь {clean_username} ещё не стартовал работу с ботом. Придумайте, как заставить его это сделать!\n"
-            "Можете ввести имя другого пользователя!",
-            reply_markup=get_back_keyboard()
+            "Можете ввести имя другого пользователя!"
+            #reply_markup=get_back_keyboard()
         )
         return States.SELECTING_RECIPIENT
     
@@ -112,11 +113,13 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if "chat not found" in error_text:
             await update.message.reply_text("❌ Пользователь не найден. Убедитесь, что username правильный и пользователь писал боту хотя бы раз.")
         elif "user is deactivated" in error_text:
-            await update.message.reply_text("❌ Аккаунт пользователя деактивирован.",
-                                            reply_markup=get_back_keyboard())
+            await update.message.reply_text("❌ Аккаунт пользователя деактивирован. Попробуйте снова."
+                                            #reply_markup=get_back_keyboard()
+                                            )
         else:
-            await update.message.reply_text("❌ Пользователь не найден или недоступен. Попробуйте снова.",
-                                            reply_markup=get_back_keyboard())
+            await update.message.reply_text("❌ Пользователь не найден или недоступен. Попробуйте снова."
+                                            #reply_markup=get_back_keyboard()
+                                            )
         
         return States.SELECTING_RECIPIENT
     
@@ -135,10 +138,30 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def edit_text_manual(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ручной ввод текста"""
-    text = update.message.text
     
-    # Сохраняем текст
-    context.user_data['text'] = text
+    # Проверяем, есть ли текст в сообщении
+    if update.message.text:
+        # Пользователь отправил текст - берём как есть
+        text = update.message.text
+        # text = update.message.text  # Это уже сырой текст, никак не обработанный Telegram'ом
+        
+    elif update.message.caption:
+        # Пользователь отправил медиа с подписью
+        text = update.message.caption
+        
+    else:
+        # Пользователь отправил что-то без текста
+        await update.message.reply_text(
+            "❌ Пожалуйста, отправьте текстовое сообщение или фото с подписью.\n"
+            "✍️ Напишите текст для валентинки:"
+        )
+        return States.EDITING_TEXT  # Оставляем в том же состоянии
+    
+    # Сохраняем сырой текст (никак не меняем)
+    context.user_data['text'] = escape_markdown(text, version=2)  # text уже содержит все символы как есть
+    
+    # Логируем для отладки (если нужно)
+    print(f"Получен текст: {text}")  # Увидите все символы включая [ ] и т.д.
     
     await confirm_valentine(update, context)
     

@@ -12,6 +12,8 @@ import os
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
+    if context.user_data.get('start_message_sent'):
+        return
     user = update.effective_user
     
     welcome_text = (
@@ -34,6 +36,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not db.user_exists(telegram_id):
             db.add_user(telegram_id, username)
         await update.message.reply_text(welcome_text, reply_markup=get_start_keyboard())
+        context.user_data['start_message_sent'] = True
     else:
         query = update.callback_query
         await query.answer()
@@ -47,13 +50,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=welcome_text,
                 reply_markup=get_start_keyboard()
             )
+            context.user_data['start_message_sent'] = True
         else:
             # Обычное текстовое сообщение - можно редактировать
             await query.edit_message_text(welcome_text, reply_markup=get_start_keyboard())
+            context.user_data['start_message_sent'] = True
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик помощи"""
+
     query = update.callback_query
     await query.answer()
     
@@ -82,7 +88,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "create_valentine":
         await query.edit_message_text(
             "💝 Отлично! Давай создадим самую фарсовую! валентинку.\n\n"
-            "📋 **Напиши @ник_в_телеграме получателя**\n"
+            "📋 **Напиши мне ⬇️ @ник_в_телеграме получателя**\n"
             "(можно с символом @ или без - бот поймёт оба варианта)\n\n"
             "Пример: @MikhailDOOMER или просто MikhailDOOMER"
         )
@@ -94,6 +100,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif query.data == "back_to_start":
         context.user_data.clear()  # Очищаем данные при выходе
+        context.user_data['start_message_sent'] = False  # Сбрасываем флаг
         await start(update, context)
         return ConversationHandler.END
     
@@ -204,6 +211,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "cancel":
         context.user_data.clear()  # Очищаем данные при отмене
         # await query.edit_message_text("❌ Создание валентинки отменено.")
+        context.user_data['start_message_sent'] = False
         await start(update, context)
         return ConversationHandler.END
     
