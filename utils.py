@@ -10,7 +10,7 @@ import re
 from db import SqliteDb
 
 async def generate_image():
-        img = await generate_valentine_image()
+        img = generate_valentine_image()
         
         # Конвертируем PIL Image в bytes для отправки
         bio = BytesIO()
@@ -18,6 +18,7 @@ async def generate_image():
         img.save(bio, 'PNG')
         bio.seek(0)
         return bio
+
 
 async def generate_text(topic):
     text = await generate_valentine_text(topic)
@@ -55,14 +56,14 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return States.SELECTING_RECIPIENT
     elif not is_valid_username(clean_username):
         await update.message.reply_text(
-            "❌ Некорректное имя пользователя!.\n"
+            f"❌ {clean_username} - некорректное имя пользователя в Telegram!\n"
             "Пожалуйста, введите @ник_в_телеграме получателя корректно:",
             reply_markup=get_back_keyboard()
         )
         return States.SELECTING_RECIPIENT
     elif not db.username_exists(clean_username):
         await update.message.reply_text(
-            "❌ Пользователь ещё не стартовал работу с ботом. Придумайте, как заставить его это сделать!\n"
+            f"❌ Пользователь {clean_username} ещё не стартовал работу с ботом. Придумайте, как заставить его это сделать!\n"
             "Можете ввести имя другого пользователя!",
             reply_markup=get_back_keyboard()
         )
@@ -73,8 +74,9 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['recipient_id'] = db.get_telegram_id_by_username(clean_username)
         
         status_msg = await update.message.reply_text(
-            f"🎨 Генерирую валентинку для @{clean_username}...\n"
-            f"⏱ Это может занять до 30 секунд"
+            f"🎨 Генерирую валентинку для @{clean_username}...\n\n"
+            f"⏱ Это может занять определенное время, но вы же готовы подождать ради своей любви? 🙏❤️\n\n"
+            f"Не переживайте, все будет. (не гоните лошадей)"
         )
         try:
             bio = await generate_image()
@@ -205,7 +207,7 @@ async def send_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_photo(
             chat_id=recipient_id,
             photo=image_file_id,
-            caption=f"💌 **Вам валентинка!**\n\nТекст: {text}\n\n❤️ С днём всех влюбленных! ❤️",
+            caption=f"💌 **Вам валентинка от анонима!**\n\nТекст: {text}\n\n❤️ С днём всех влюбленных! ❤️",
             parse_mode='Markdown'
         )
         
