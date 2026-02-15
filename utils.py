@@ -8,6 +8,7 @@ from keyboards import get_image_edit_keyboard, get_confirmation_keyboard, get_ba
 from image_api import generate_valentine_image
 from gpt_api import generate_valentine_text
 import re
+import html
 from db import SqliteDb
 
 async def generate_image():
@@ -93,7 +94,7 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sent_message = await update.message.reply_photo(
                     photo=bio,
                     caption=caption,
-                    parse_mode='Markdown',
+                    parse_mode='HTML',
                     reply_markup=get_image_edit_keyboard()
                 )
             
@@ -102,10 +103,11 @@ async def select_recipient(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.delete()
 
             await update.message.reply_text(
-                text=f"⚠️ Не удалось сгенерировать изображение.\n",
+                text=f"⚠️ Не удалось сгенерировать изображение. Попробуйте снова.\n",
                 reply_markup=get_back_keyboard()
             )
-            
+            return ConversationHandler.END
+        
         return States.GENERATING_IMAGE
 
     except BadRequest as e:
@@ -159,7 +161,7 @@ async def edit_text_manual(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return States.EDITING_TEXT  # Оставляем в том же состоянии
     
     # Сохраняем сырой текст (никак не меняем)
-    context.user_data['text'] = escape_markdown(text, version=2)  # text уже содержит все символы как есть
+    context.user_data['text'] = html.escape(text)  # text уже содержит все символы как есть
     
     # Логируем для отладки (если нужно)
     print(f"Получен текст: {text}")  # Увидите все символы включая [ ] и т.д.
@@ -190,12 +192,12 @@ async def confirm_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id=update.effective_chat.id,
         photo=image_file_id,
         caption=(
-            "💝 **ВСЁ ГОТОВО К ОТПРАВКЕ!**\n\n"
-            f"📤 **Получатель:** @{recipient}\n"
-            f"📝 **Текст:** {text}\n\n"
+            "💝 <b>ВСЁ ГОТОВО К ОТПРАВКЕ!</b>\n\n"
+            f"📤 <b>Получатель:</b> @{recipient}\n"
+            f"📝 <b>Текст:</b> {text}\n\n"
             "✅ Проверь данные. Всё верно?"
         ),
-        parse_mode='Markdown',
+        parse_mode='HTML',
         reply_markup=get_confirmation_keyboard()
     )
     
@@ -223,16 +225,16 @@ async def send_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Отправляем статус отправки
         status_msg = await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f"📤 **Отправляю валентинку** @{recipient}...\n\n⏳ Пожалуйста, подождите...",
-            parse_mode='Markdown'
+            text=f"📤 <b>Отправляю валентинку</b> @{recipient}...\n\n⏳ Пожалуйста, подождите...",
+            parse_mode='HTML'
         )
         
         # Отправляем фото получателю
         await context.bot.send_photo(
             chat_id=recipient_id,
             photo=image_file_id,
-            caption=f"💌 **Вам валентинка от анонима!**\n\nТекст: {text}\n\n❤️ С днём всех влюбленных! ❤️",
-            parse_mode='Markdown'
+            caption=f"💌 <b>Вам валентинка от анонима!</b>\n\nТекст: {text}\n\n❤️ С <i>почти</i> днём всех влюбленных! ❤️",
+            parse_mode='HTML'
         )
         
         # Удаляем статус и отправляем сообщение об успехе
@@ -240,29 +242,21 @@ async def send_valentine(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f"✅ **Валентинка @{recipient} успешно отправлена!**\n\n"
+            text=f"✅ <b>Валентинка @{recipient} успешно отправлена!</b>\n\n"
                  f"💫 Хочешь создать еще одну?",
-            parse_mode='Markdown',
+            parse_mode='HTML',
             reply_markup=get_back_keyboard()  # Клавиатура для нового создания
         )
         
     except Exception as e:
         error_message = str(e)
-        if "chat not found" in error_message:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=f"❌ **Ошибка:** Пользователь @{recipient} не найден!\n\n"
-                     f"Убедитесь, что пользователь начал диалог с ботом.",
-                parse_mode='Markdown',
-                reply_markup=get_back_keyboard()
-            )
-        else:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text=f"❌ **Ошибка при отправке:**\n{error_message}",
-                parse_mode='Markdown',
-                reply_markup=get_back_keyboard()
-            )
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"❌ <b>Ошибка при отправке:</b>\n{error_message}",
+            parse_mode='HTML',
+            reply_markup=get_back_keyboard()
+        )
+        return ConversationHandler.END
     
     context.user_data.clear()
     return ConversationHandler.END

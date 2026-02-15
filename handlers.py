@@ -119,14 +119,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.delete()
 
             caption = (
-                f"❤️ **Валентинка для @{recipient}** ❤️\n\n"
+                f"❤️ <b>Валентинка для @{recipient}</b> ❤️\n\n"
                 f"💝 Нажми кнопки ниже, чтобы настроить или отправить"
             )
             sent_message = await context.bot.send_photo(
                 chat_id=query.message.chat_id,
                 photo=bio,
                 caption=caption,
-                parse_mode='Markdown',
+                parse_mode='HTML',
                 reply_markup=get_image_edit_keyboard()
             )
             context.user_data['generated_image'] = sent_message.photo[-1].file_id
@@ -185,11 +185,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if current_text:
             await context.bot.send_message(
                 chat_id=query.message.chat_id,
-                text=f"📝 **Текущий текст:**\n\n"
-                    f"`{current_text}`\n\n"
+                text=f"📝 <b>Текущий текст:</b>\n\n"
+                    f"<code>{current_text}</code>\n\n"
                     f"👆 Нажми на текст, чтобы скопировать\n\n"
                     f"✏️ Отправь новый вариант текста:",
-                parse_mode='Markdown'
+                parse_mode='HTML'
             )
         else:
             await context.bot.send_message(
